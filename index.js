@@ -153,8 +153,8 @@ app.post('/', async (req, res) => {
       if (userStates[u] === "waiting_review") {
         userStates[u] = "question_0";
         applications[u] = [];
-        sendMessage("✅ Photo approved. Beginning interview...");
-        sendMessage(questions[0]);
+        await sendMessage("✅ Photo approved. Beginning interview...");
+        await sendMessage(questions[0]);
       }
     }
     return;
@@ -167,7 +167,7 @@ app.post('/', async (req, res) => {
     // Save answer
     applications[user].push({ question: questions[index], answer: message });
 
-    // 👀 TERMS CHECK QUESTION (after occupation & chat)
+    // 👀 TERMS CHECK QUESTION (index 4)
     if (index === 4) {
       const response = message.toLowerCase();
       if (/(yes|yeah|yep|of course|obviously)/.test(response)) {
@@ -179,8 +179,8 @@ app.post('/', async (req, res) => {
       }
     }
 
-    // 👇 YES/NO MEME STEALING QUESTION
-    if (index === 9) {
+    // 👇 YES/NO MEME STEALING QUESTION (index 9)
+    if (index === 9 && !applications[user].memeCriminal) {
       const result = detectYesNo(message);
       applications[user].memeCriminal = result;
       if (result === "yes") await sendMessage("😏 Honesty detected. Respect. Proceed to explain your crimes.");
@@ -193,7 +193,8 @@ app.post('/', async (req, res) => {
     // Next question or special follow-up
     if (index < questions.length) {
       userStates[user] = `question_${index}`;
-      if (index === 10) { // follow-up after yes/no
+      // Follow-up only for the explanation question (index 10)
+      if (index === 10) {
         const status = applications[user].memeCriminal;
         if (status === "yes") return sendMessage("Alright criminal, explain the situation.");
         if (status === "no") return sendMessage("Explain yourself. Why are you lying?");
@@ -211,13 +212,14 @@ app.post('/', async (req, res) => {
     summary += "━━━━━━━━━━━━━━━━━━━━━━\n⏳ Your application is under review.\nPlease wait 2–3 business minutes.";
 
     await sendMessage(summary);
-    await sendMessage(`New application from ${username} ready for review.`);
+    // ✅ Owner mention for new application notification
+    await sendMessage(`${OWNER_NAME} 📬 New application ready for review.`, true);
     return;
   }
 
   // 🧑‍💼 REVIEWER APPROVE/DENY FINAL LICENSE (no mention)
   if (msg === "#approve") {
-    return sendMessage(`✅ ${username}'s Meme License has been APPROVED! Please wait while we print their license...`);
+    return sendMessage(`✅ ${username}'s Meme License has been APPROVED! Please wait while we print YOUR license...`);
   }
   if (msg === "#deny") {
     return sendMessage(`❌ ${username}'s Meme License has been DENIED. Better luck next time.`);
