@@ -23,7 +23,7 @@ function detectYesNo(input) {
 }
 
 // 📜 TERMS & CONDITIONS
-const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.6)
+const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.8)
 
 Before proceeding, you must review and accept the following legally-questionable terms:
 
@@ -37,7 +37,7 @@ Repeated posting of unfunny, outdated, or cringe memes may result in:
    - Temporary suspension
    - Permanent revocation
    - Public shaming
-4. Cross-chat meme redistribution WITHOUT proper licensing is strictly prohibited.
+4. Cross-chat meme redistribution WITHOUT proper licensing is strictly prohibited. You may only use this license in the chat it was issued for. To get a license in another chat, you must re-apply for that chat.
 (Yes, we WILL know.)
 5. This license does NOT guarantee:
    - Originality
@@ -49,7 +49,7 @@ Repeated posting of unfunny, outdated, or cringe memes may result in:
 
 💡 NOTE: If you have any questions during the interview, please use the #quit command before asking them, as it will mess up the bot.
 
-📢 THIS IS NOT AN AI.
+📢 THIS IS NOT AN AI (nobody else is seeing this info, it’s just a joke).
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -63,9 +63,9 @@ or
 // ❓ QUESTIONS
 const questions = [
   "State your name.",
-  "Which group chat will you be using this Meme License for?",
   "State your gender.",
   "State your current occupation (or \"professional memer\" if unemployed).",
+  "Which group chat will you be using this Meme License for?",
   "Why do you believe you deserve meme stealing privileges?",
   "Describe your sense of humor in one sentence.",
   "What is your favorite type of meme to steal?",
@@ -81,7 +81,7 @@ const questions = [
 ];
 
 // 📤 SEND MESSAGE
-function sendMessage(text, mention = false) {
+async function sendMessage(text, mention = false) {
   let data = { bot_id: BOT_ID, text };
   if (mention) {
     data.attachments = [{
@@ -90,7 +90,7 @@ function sendMessage(text, mention = false) {
       user_ids: [OWNER_USER_ID]
     }];
   }
-  return axios.post('https://api.groupme.com/v3/bots/post', data);
+  await axios.post('https://api.groupme.com/v3/bots/post', data);
 }
 
 // 🚀 MAIN WEBHOOK
@@ -100,11 +100,10 @@ app.post('/', async (req, res) => {
   const message = req.body.text;
   const user = req.body.sender_id;
   const attachments = req.body.attachments || [];
-
-  if (!message && attachments.length === 0) return;
-
   const msg = message ? message.toLowerCase() : "";
   const isOwner = user === OWNER_USER_ID;
+
+  if (!message && attachments.length === 0) return;
 
   // 🟢 START
   if (msg === "#start") {
@@ -141,14 +140,14 @@ app.post('/', async (req, res) => {
 
   // 🧑‍💼 OWNER COMMANDS
   if (isOwner) {
-    // APPROVE PHOTO
+    // APPROVE PHOTO & BEGIN INTERVIEW
     if (msg === "#reviewed") {
       for (let u in userStates) {
         if (userStates[u] === "waiting_review") {
           userStates[u] = "question_0";
           applications[u] = [];
-          sendMessage("✅ Photo approved. Beginning interview...");
-          sendMessage(questions[0]);
+          await sendMessage("✅ Photo approved. Beginning interview...");
+          await sendMessage(questions[0]);
         }
       }
       return;
@@ -159,7 +158,29 @@ app.post('/', async (req, res) => {
       for (let u in userStates) {
         if (userStates[u] === "waiting_review") {
           userStates[u] = null;
-          sendMessage(`🚫 Photo denied for user <${u}>.`);
+          await sendMessage(`🚫 Photo denied for user <${u}>.`);
+        }
+      }
+      return;
+    }
+
+    // FINAL LICENSE APPROVAL
+    if (msg === "#approve") {
+      for (let u in userStates) {
+        if (userStates[u] === "done") {
+          await sendMessage(`✅ Meme License APPROVED for ${u}. Congratulations!`, true);
+          userStates[u] = "licensed";
+        }
+      }
+      return;
+    }
+
+    // FINAL LICENSE DENIAL
+    if (msg === "#denylicense") {
+      for (let u in userStates) {
+        if (userStates[u] === "done") {
+          await sendMessage(`🚫 Meme License DENIED for ${u}.`, true);
+          userStates[u] = null;
         }
       }
       return;
@@ -171,23 +192,17 @@ app.post('/', async (req, res) => {
     let index = parseInt(userStates[user].split("_")[1]);
     applications[user].push({ question: questions[index], answer: message });
 
-    // 👇 SPECIAL YES/NO LOGIC for meme theft
-    if (index === 8) { // "Have you ever stolen a meme without permission"
+    // 👇 YES/NO LOGIC for meme theft
+    if (index === 8) {
       const result = detectYesNo(message);
       applications[user].memeCriminal = result;
 
-      if (result === "yes") {
-        sendMessage("😏 Honesty detected. Respect.\nProceed to explain your crimes.");
-      } else if (result === "no") {
-        sendMessage("🚨 Lying detected.\nThis has been flagged for suspicious levels of innocence.");
-      } else {
-        sendMessage("🤨 That wasn't a clear yes or no... we'll keep an eye on you.");
-      }
+      if (result === "yes") sendMessage("😏 Honesty detected. Respect.\nProceed to explain your crimes.");
+      else if (result === "no") sendMessage("🚨 Lying detected.\nThis has been flagged for suspicious levels of innocence.");
+      else sendMessage("🤨 That wasn't a clear yes or no... we'll keep an eye on you.");
     }
 
     index++;
-
-    // Next question
     if (index < questions.length) {
       userStates[user] = `question_${index}`;
       return sendMessage(questions[index]);
@@ -196,18 +211,15 @@ app.post('/', async (req, res) => {
     // 🧾 FINISHED
     userStates[user] = "done";
     let summary = "📋 MEME LICENSE APPLICATION\n━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
-    if (applications[user].memeCriminal === "no") {
-      summary += "🚨 FLAG: POSSIBLE LIAR DETECTED\n\n";
-    }
+    if (applications[user].memeCriminal === "no") summary += "🚨 FLAG: POSSIBLE LIAR DETECTED\n\n";
 
     applications[user].forEach((item, i) => {
       summary += `Q${i + 1}: ${item.question}\nA: ${item.answer}\n\n`;
     });
 
-    summary += "━━━━━━━━━━━━━━━━━━━━━━\n⏳ Your application is under review.\nPlease wait 2–3 business minutes.";
+    summary += "━━━━━━━━━━━━━━━━━━━━━━\n⏳ Your application is under review.\nPlease wait for approval by the reviewer.";
 
-    sendMessage(summary);
+    await sendMessage(summary);
     return sendMessage(`${OWNER_NAME} 📬 New application ready for review.`, true);
   }
 });
