@@ -69,9 +69,9 @@ or
 
 // ❓ QUESTIONS
 const questions = [
-  "State your name for the Meme Registry.",
+  "State your full name for the Meme Registry.",
   "State your gender.",
-  "State your current occupation (or 'professional memer' if unemployed).",
+  "State your current occupation (or \"professional memer\" if unemployed).",
   "Which GroupMe chat do you want this license for?",
   "Did you actually read the terms and conditions?",
   "Why do you believe you deserve meme stealing privileges?",
@@ -103,7 +103,7 @@ async function sendMessage(text, mention = false) {
 
 // 🚀 MAIN WEBHOOK
 app.post('/', async (req, res) => {
-  res.sendStatus(200); // ✅ required for GroupMe
+  res.sendStatus(200);
 
   const message = req.body.text;
   const user = req.body.sender_id;
@@ -130,7 +130,9 @@ app.post('/', async (req, res) => {
   if (userStates[user] === "terms") {
     if (msg === "#accept") {
       userStates[user] = "awaiting_photo";
-      return sendMessage("📸 Please send your photo for your Meme License.\nRest assured, your photo is just for the license and will not be shared.\nAfter sending it, type: photo sent");
+      return sendMessage(
+        "📸 Please send your photo for your Meme License.\nRest assured, your photo is just for the license and will not be shared.\nAfter sending it, type: photo sent"
+      );
     }
     if (msg === "#deny") {
       userStates[user] = null;
@@ -219,7 +221,7 @@ app.post('/', async (req, res) => {
 
   // 🧑‍💼 REVIEWER APPROVE/DENY FINAL LICENSE (no mention)
   if (msg === "#approve") {
-    return sendMessage(`✅ ${username}'s Meme License has been APPROVED! Please wait while we print YOUR license...`);
+    return sendMessage(`✅ ${username}'s Meme License has been APPROVED! We are printing your license now. Please hold.`);
   }
   if (msg === "#deny") {
     return sendMessage(`❌ ${username}'s Meme License has been DENIED. Better luck next time.`);
