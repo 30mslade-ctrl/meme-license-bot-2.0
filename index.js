@@ -14,6 +14,16 @@ const OWNER_NAME = '@Mira (Reviewer)'; // just display text
 let userStates = {};
 let applications = {};
 
+// 🧠 YES/NO DETECTOR
+function detectYesNo(input) {
+  const msg = input.toLowerCase();
+
+  if (/(yes|yeah|yep|yup|of course|obviously)/.test(msg)) return "yes";
+  if (/(no|nah|nope|never)/.test(msg)) return "no";
+
+  return "unknown";
+}
+
 // 📜 TERMS & CONDITIONS
 const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.4)
 
@@ -93,10 +103,12 @@ function sendMessage(text, mention = false) {
 
 // 🚀 MAIN WEBHOOK
 app.post('/', async (req, res) => {
+  res.sendStatus(200); // ✅ important for GroupMe
+
   const message = req.body.text;
   const user = req.body.sender_id;
 
-  if (!message) return res.sendStatus(200);
+  if (!message) return;
 
   const msg = message.toLowerCase();
 
@@ -140,6 +152,7 @@ app.post('/', async (req, res) => {
         sendMessage(questions[0]);
       }
     }
+    return; // ✅ FIXED BUG
   }
 
   // ❓ QUESTION FLOW
@@ -152,18 +165,49 @@ app.post('/', async (req, res) => {
       answer: message
     });
 
+    // 👇 SPECIAL YES/NO LOGIC
+    if (index === 7) {
+      const result = detectYesNo(message);
+      applications[user].memeCriminal = result;
+
+      if (result === "yes") {
+        sendMessage("😏 Honesty detected. Respect.\n\nProceed to explain your crimes.");
+      } else if (result === "no") {
+        sendMessage("🚨 Lying detected.\nThis has been flagged for suspicious levels of innocence.");
+      } else {
+        sendMessage("🤨 That wasn't a clear yes or no... we'll keep an eye on you.");
+      }
+    }
+
     index++;
 
     // Next question
     if (index < questions.length) {
       userStates[user] = `question_${index}`;
+
+      // 👇 CUSTOM FOLLOW-UP
+      if (index === 8) {
+        const status = applications[user].memeCriminal;
+
+        if (status === "yes") {
+          return sendMessage("Alright criminal, explain the situation.");
+        } else if (status === "no") {
+          return sendMessage("Explain yourself. Why are you lying?");
+        }
+      }
+
       return sendMessage(questions[index]);
     }
 
-    // 🧾 FINISHED INTERVIEW
+    // 🧾 FINISHED
     userStates[user] = "done";
 
     let summary = "📋 MEME LICENSE APPLICATION\n━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+    // 🚨 FLAG
+    if (applications[user].memeCriminal === "no") {
+      summary += "🚨 FLAG: POSSIBLE LIAR DETECTED\n\n";
+    }
 
     applications[user].forEach((item, i) => {
       summary += `Q${i + 1}: ${item.question}\nA: ${item.answer}\n\n`;
@@ -178,8 +222,6 @@ app.post('/', async (req, res) => {
       true
     );
   }
-
-  res.sendStatus(200);
 });
 
 // 🌐 START SERVER
