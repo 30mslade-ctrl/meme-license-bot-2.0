@@ -23,7 +23,7 @@ function detectYesNo(input) {
 }
 
 // 📜 TERMS & CONDITIONS
-const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.8)
+const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.9)
 
 Before proceeding, you must review and accept the following legally-questionable terms:
 
@@ -38,7 +38,6 @@ Repeated posting of unfunny, outdated, or cringe memes may result in:
    - Permanent revocation
    - Public shaming
 4. Cross-chat meme redistribution WITHOUT proper licensing is strictly prohibited. You may only use this license in the chat it was issued for. To get a license in another chat, you must re-apply for that chat.
-(Yes, we WILL know.)
 5. This license does NOT guarantee:
    - Originality
    - Laughs
@@ -66,6 +65,7 @@ const questions = [
   "State your gender.",
   "State your current occupation (or \"professional memer\" if unemployed).",
   "Which group chat will you be using this Meme License for?",
+  "Did you ACTUALLY read the terms and conditions? Reply honestly.",
   "Why do you believe you deserve meme stealing privileges?",
   "Describe your sense of humor in one sentence.",
   "What is your favorite type of meme to steal?",
@@ -95,7 +95,7 @@ async function sendMessage(text, mention = false) {
 
 // 🚀 MAIN WEBHOOK
 app.post('/', async (req, res) => {
-  res.sendStatus(200); // ✅ important for GroupMe
+  res.sendStatus(200);
 
   const message = req.body.text;
   const user = req.body.sender_id;
@@ -117,7 +117,7 @@ app.post('/', async (req, res) => {
     return sendMessage("🚪 You have exited the Meme License process. Use #start to begin again.");
   }
 
-  // ✅ ACCEPT / ❌ DENY
+  // ✅ ACCEPT / ❌ DENY TERMS
   if (userStates[user] === "terms") {
     if (msg === "#accept") {
       userStates[user] = "awaiting_photo";
@@ -146,7 +146,11 @@ app.post('/', async (req, res) => {
         if (userStates[u] === "waiting_review") {
           userStates[u] = "question_0";
           applications[u] = [];
-          await sendMessage("✅ Photo approved. Beginning interview...");
+          // Photo approved message stays as before
+          await sendMessage(
+            `${OWNER_NAME} 📥 Photo approved. Beginning interview...`,
+            true
+          );
           await sendMessage(questions[0]);
         }
       }
@@ -158,7 +162,7 @@ app.post('/', async (req, res) => {
       for (let u in userStates) {
         if (userStates[u] === "waiting_review") {
           userStates[u] = null;
-          await sendMessage(`🚫 Photo denied for user <${u}>.`);
+          await sendMessage(`🚫 Photo denied for user ${u}.`);
         }
       }
       return;
@@ -168,7 +172,8 @@ app.post('/', async (req, res) => {
     if (msg === "#approve") {
       for (let u in userStates) {
         if (userStates[u] === "done") {
-          await sendMessage(`✅ Meme License APPROVED for ${u}. Congratulations!`, true);
+          const name = applications[u][0]?.answer || "Applicant";
+          await sendMessage(`✅ Meme License APPROVED for ${name}! Please wait while we print your license!`, true);
           userStates[u] = "licensed";
         }
       }
@@ -179,7 +184,7 @@ app.post('/', async (req, res) => {
     if (msg === "#denylicense") {
       for (let u in userStates) {
         if (userStates[u] === "done") {
-          await sendMessage(`🚫 Meme License DENIED for ${u}.`, true);
+          await sendMessage(`🚫 Meme License DENIED for ${applications[u][0]?.answer || u}.`, true);
           userStates[u] = null;
         }
       }
@@ -192,11 +197,22 @@ app.post('/', async (req, res) => {
     let index = parseInt(userStates[user].split("_")[1]);
     applications[user].push({ question: questions[index], answer: message });
 
-    // 👇 YES/NO LOGIC for meme theft
-    if (index === 8) {
+    // 👀 TERMS CHECK QUESTION
+    if (index === 4) {
+      const response = message.toLowerCase();
+      if (/(yes|yeah|yep|of course|obviously)/.test(response)) {
+        sendMessage("👏 Good! At least someone read the fine print.");
+      } else if (/(no|nah|nope|never)/.test(response)) {
+        sendMessage("😏 Hmm… we might have to send you back to reading class.");
+      } else {
+        sendMessage("🤨 We'll take that as a maybe… moving on!");
+      }
+    }
+
+    // YES/NO LOGIC FOR MEME CRIMES
+    if (index === 9) {
       const result = detectYesNo(message);
       applications[user].memeCriminal = result;
-
       if (result === "yes") sendMessage("😏 Honesty detected. Respect.\nProceed to explain your crimes.");
       else if (result === "no") sendMessage("🚨 Lying detected.\nThis has been flagged for suspicious levels of innocence.");
       else sendMessage("🤨 That wasn't a clear yes or no... we'll keep an eye on you.");
@@ -218,7 +234,6 @@ app.post('/', async (req, res) => {
     });
 
     summary += "━━━━━━━━━━━━━━━━━━━━━━\n⏳ Your application is under review.\nPlease wait for approval by the reviewer.";
-
     await sendMessage(summary);
     return sendMessage(`${OWNER_NAME} 📬 New application ready for review.`, true);
   }
