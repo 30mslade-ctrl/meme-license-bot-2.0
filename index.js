@@ -8,7 +8,7 @@ app.use(bodyParser.json());
 // 🔧 CONFIG — EDIT THESE
 const BOT_ID = '8846a62e10e090cb28b4582a19';
 const OWNER_USER_ID = '122993150'; // your GroupMe user ID
-const OWNER_NAME = '@Mira (Reviewer)'; // just display text
+const OWNER_NAME = '@Mira (Reviewer)'; // display text
 
 // 🧠 MEMORY
 let userStates = {};
@@ -17,18 +17,13 @@ let applications = {};
 // 🧠 YES/NO DETECTOR
 function detectYesNo(input) {
   const msg = input.toLowerCase();
-
   if (/(yes|yeah|yep|yup|of course|obviously)/.test(msg)) return "yes";
   if (/(no|nah|nope|never)/.test(msg)) return "no";
-
   return "unknown";
 }
 
-// 📢 BOT ANNOUNCEMENT
-const ANNOUNCEMENT = "🤖 This is a Meme License Bot coded by Mira, IT IS NOT AN AI.";
-
-// 📜 TERMS & CONDITIONS (Updated)
-const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.5)
+// 📜 TERMS & CONDITIONS
+const TERMS = `📜 MEME STEALING LICENSE AGREEMENT (MSLA v1.6)
 
 Before proceeding, you must review and accept the following legally-questionable terms:
 
@@ -54,6 +49,8 @@ Repeated posting of unfunny, outdated, or cringe memes may result in:
 
 💡 NOTE: If you have any questions during the interview, please use the #quit command before asking them, as it will mess up the bot.
 
+📢 THIS IS NOT AN AI.
+
 ━━━━━━━━━━━━━━━━━━━━━━
 
 Do you accept these terms?
@@ -65,7 +62,8 @@ or
 
 // ❓ QUESTIONS
 const questions = [
-  "State your full name for the Meme Registry.",
+  "State your name.",
+  "Which group chat will you be using this Meme License for?",
   "State your gender.",
   "State your current occupation (or \"professional memer\" if unemployed).",
   "Why do you believe you deserve meme stealing privileges?",
@@ -82,7 +80,7 @@ const questions = [
   "Final question: Are you funny? Defend your answer."
 ];
 
-// 📤 SEND MESSAGE (with optional mention)
+// 📤 SEND MESSAGE
 function sendMessage(text, mention = false) {
   let data = { bot_id: BOT_ID, text };
   if (mention) {
@@ -107,11 +105,6 @@ app.post('/', async (req, res) => {
 
   const msg = message ? message.toLowerCase() : "";
   const isOwner = user === OWNER_USER_ID;
-
-  // 🟢 ANNOUNCEMENT (first message)
-  if (!userStates[user]) {
-    sendMessage(ANNOUNCEMENT);
-  }
 
   // 🟢 START
   if (msg === "#start") {
@@ -146,28 +139,40 @@ app.post('/', async (req, res) => {
     );
   }
 
-  // 🧑‍💼 OWNER APPROVES
-  if (msg === "#reviewed" && isOwner) {
-    for (let u in userStates) {
-      if (userStates[u] === "waiting_review") {
-        userStates[u] = "question_0";
-        applications[u] = [];
-        sendMessage("✅ Photo approved. Beginning interview...");
-        sendMessage(questions[0]);
+  // 🧑‍💼 OWNER COMMANDS
+  if (isOwner) {
+    // APPROVE PHOTO
+    if (msg === "#reviewed") {
+      for (let u in userStates) {
+        if (userStates[u] === "waiting_review") {
+          userStates[u] = "question_0";
+          applications[u] = [];
+          sendMessage("✅ Photo approved. Beginning interview...");
+          sendMessage(questions[0]);
+        }
       }
+      return;
     }
-    return;
+
+    // DENY PHOTO
+    if (msg === "#deny") {
+      for (let u in userStates) {
+        if (userStates[u] === "waiting_review") {
+          userStates[u] = null;
+          sendMessage(`🚫 Photo denied for user <${u}>.`);
+        }
+      }
+      return;
+    }
   }
 
   // ❓ QUESTION FLOW
   if (userStates[user] && userStates[user].startsWith("question_")) {
     let index = parseInt(userStates[user].split("_")[1]);
-
-    // Save answer
     applications[user].push({ question: questions[index], answer: message });
 
     // 👇 SPECIAL YES/NO LOGIC for meme theft
-    if (index === 7) {
+    if (index === 8) { // "Have you ever stolen a meme without permission"
       const result = detectYesNo(message);
       applications[user].memeCriminal = result;
 
